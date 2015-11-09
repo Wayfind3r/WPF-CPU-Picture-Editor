@@ -1,0 +1,231 @@
+﻿<Window x:Class="Photo_Editor.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Photo_Editor"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="650" Width="400" Name="PhotoEditorMainWindow" ResizeMode="CanResize" Loaded="MainWindow_OnLoaded" WindowStartupLocation="Manual">
+    <Window.Resources>
+        <LinearGradientBrush x:Key="LightBlueGradient" StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="LightBlue" Offset="0.5"/>
+            <GradientStop Color="Blue" Offset="1"/>
+        </LinearGradientBrush>
+    </Window.Resources>
+    <Window.CommandBindings>
+        <CommandBinding Command="local:CustomCommands.Exit" CanExecute="ExitCommand_CanExecute" Executed="ExitCommand_Executed" />
+        <CommandBinding Command="local:CustomCommands.Open" CanExecute="OpenCommand_CanExecute" Executed="OpenCommand_Executed"/>
+        <CommandBinding Command="local:CustomCommands.Save" CanExecute="SaveCommand_CanExecute" Executed="SaveCommand_Executed"/>
+        <CommandBinding Command="local:CustomCommands.Undo" CanExecute="UndoCommand_CanExecute" Executed="UndoCommand_Executed"/>
+        <CommandBinding Command="local:CustomCommands.Redo" CanExecute="RedoCommand_CanExecute" Executed="RedoCommand_Executed"/>
+        <CommandBinding Command="local:CustomCommands.Resize" CanExecute="ResizeCommand_CanExecute" Executed="ResizeCommand_Executed"/>
+        <CommandBinding Command="local:CustomCommands.ApplyResize" CanExecute="ResizeCommand_CanExecute" Executed="ApplyResizeCommand_Executed"/>
+    </Window.CommandBindings>
+    <Grid Name="MainGrid">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="380"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="30"/>
+            <RowDefinition Height="140"/>
+            <RowDefinition Height="235"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Menu Name="ToolBarDockPanel"  Grid.Row="0" Grid.ColumnSpan="2">
+            <MenuItem Header="_File" VerticalAlignment="Center" VerticalContentAlignment="Center">
+                <MenuItem Command="local:CustomCommands.Open"/>
+                <MenuItem Command="local:CustomCommands.Save"/>
+                <MenuItem Command="local:CustomCommands.Exit" />
+            </MenuItem>
+            <Button Name="OpenButton" Command="local:CustomCommands.Open" Style="{StaticResource {x:Static ToolBar.ButtonStyleKey}}">Open</Button>
+            <Button Name="SaveButton" Command="local:CustomCommands.Save" Style="{StaticResource {x:Static ToolBar.ButtonStyleKey}}">Save</Button>
+            <Button Name="UndoButton" Command="local:CustomCommands.Undo" Style="{StaticResource {x:Static ToolBar.ButtonStyleKey}}">Undo</Button>
+            <Button Name="RedoButton" Command="local:CustomCommands.Redo" Style="{StaticResource {x:Static ToolBar.ButtonStyleKey}}">Redo</Button>
+            <Button Name="ResizeButton" Command="local:CustomCommands.Resize" Style="{StaticResource {x:Static ToolBar.ButtonStyleKey}}">Resize</Button>
+        </Menu>
+        <Grid Name="ImageDataMainGrid" Margin="10" Row="1" Column="0" Width="360" Height="120" VerticalAlignment="Top">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="160"/>
+                <ColumnDefinition Width="200"/>
+            </Grid.ColumnDefinitions>
+            <Grid Name="ImageDataGrid" >
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="25"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Border Margin="0" Name="ImagePropertiesBorder" BorderThickness="0.5" BorderBrush="Black" Background ="{DynamicResource ResourceKey=LightBlueGradient}">
+                        <TextBlock Name="ImageProperties" Margin="5" Width="140" FontWeight="Bold">Image Properties
+                        </TextBlock>
+                </Border>
+                <Border Name="ActualImagePropertiesBorder" Margin="0" Grid.Row="1" Grid.RowSpan="5" BorderThickness="0.5" BorderBrush="Black">
+                </Border>
+                <TextBlock Margin="3" Name="TotalPixels" Grid.Row="1">Total Pixels:</TextBlock>
+                <TextBlock Margin="3" Name="NumberOfPixelsX" Grid.Row="2">Pixels X:</TextBlock>
+                <TextBlock Margin="3" Name="NumberOfPixelsY" Grid.Row="3">Pixels Y:</TextBlock>
+                <TextBlock Margin="3" Name="ExactPixel" Grid.Row="4">Pixel:</TextBlock>
+                <TextBlock Margin="3" Name="PixelRGB" Grid.Row="5">Pixel RGB:</TextBlock>
+            </Grid>
+            <Grid Name="ShaderDataGrid" Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="25"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="60"/>
+                    <ColumnDefinition Width="40"/>
+                </Grid.ColumnDefinitions>
+            <Border Margin="0" Name="ShaderDataBorder" Grid.Row="0" Grid.ColumnSpan="5" BorderThickness="0.5" BorderBrush="Black"  Background ="{DynamicResource ResourceKey=LightBlueGradient}">
+            <TextBlock Name="CustomKernelTextBlock" Margin="5"  FontWeight="Bold" >Custom Kernel
+            </TextBlock>
+            </Border>
+                <Border Name="ActualShaderDataBorder" Margin="0" Grid.Row="1" Grid.RowSpan="3" Grid.ColumnSpan="5" BorderThickness="0.5" BorderBrush="Black"></Border>
+                <TextBox Name="KernelBox00" Margin="1.5" Grid.Row="1" Grid.Column="0" TextAlignment="Center" LostFocus="DOffsetOrKernelTextBox_OnLostFocus" ToolTip="Acceptable values -255 to 255">0</TextBox>
+                <TextBox Name="KernelBox10" Margin="1.5" Grid.Row="2" Grid.Column="0" TextAlignment="Center" LostFocus="DOffsetOrKernelTextBox_OnLostFocus" ToolTip="Acceptable values -255 to 255">0</TextBox>
+                <TextBox Name="KernelBox20" Margin="1.5" Grid.Row="3" Grid.Column="0" TextAlignment="Center" LostFocus="DOffsetOrKernelTextBox_OnLostFocus" ToolTip="Acceptable values -255 to 255">0</TextBox>
+                <TextBox Name="KernelBox01" Margin="1.5" Grid.Row="1" Grid.Column="1" TextAlignment="Center" LostFocus="DOffsetOrKernelTextBox_OnLostFocus" ToolTip="Acceptable values -255 to 255">0</TextBox>
+                <TextBox Name="KernelBox11" Margin="1.5" Grid.Row="2" Grid.Column="1" TextAlignment="Center" LostFocus="DOffsetOrKernelTextBox_OnLostFocus" ToolTip="Acceptable values -255 to 255">1</TextBox>
+                <TextBox Name="KernelBox21" Margin="1.5" Grid.Row="3" Grid.Column="1" TextAlignment="Center" LostFocus="DOffsetOrKernelTextBox_OnLostFocus" ToolTip="Acceptable values -255 to 255">0</TextBox>
+                <TextBox Name="KernelBox02" Margin="1.5" Grid.Row="1" Grid.Column="2" TextAlignment="Center" LostFocus="DOffsetOrKernelTextBox_OnLostFocus" ToolTip="Acceptable values -255 to 255">0</TextBox>
+                <TextBox Name="KernelBox12" Margin="1.5" Grid.Row="2" Grid.Column="2" TextAlignment="Center" LostFocus="DOffsetOrKernelTextBox_OnLostFocus" ToolTip="Acceptable values -255 to 255">0</TextBox>
+                <TextBox Name="KernelBox22" Margin="1.5" Grid.Row="3" Grid.Column="2" TextAlignment="Center" LostFocus="DOffsetOrKernelTextBox_OnLostFocus" ToolTip="Acceptable values -255 to 255">0</TextBox>
+                <TextBlock Name="DFactor" Grid.Row="1" Grid.Column="3" TextAlignment="Center" VerticalAlignment="Center"  ToolTip="Acceptable values 0.1 to 99">Factor:</TextBlock>
+                <TextBox Name="DFactorTextBox" Margin="1.5" Grid.Row="1" Grid.Column="4" TextAlignment="Center" MaxLength="4" Text="1"  ToolTip="Acceptable values 0.1 to 99"  LostFocus="DFactorTextBox_OnLostFocus"></TextBox>
+                <TextBlock Name="DOffset" Grid.Row="2" Grid.Column="3" TextAlignment="Center" VerticalAlignment="Center" ToolTip="Acceptable values -255 to 255">Offset:</TextBlock>
+                <TextBox Name="DOffsetTextBox" Margin="1.5" Grid.Row="2" Grid.Column="4" TextAlignment="Center" MaxLength="4" Text="0" ToolTip="Acceptable values -255 to 255" LostFocus="DOffsetOrKernelTextBox_OnLostFocus"></TextBox>
+                <Button Name="ApplyCustomKernelButton" Margin="2" Grid.Row="3" Grid.Column="3" Grid.ColumnSpan="2" Click="ApplyCustomKernelButton_OnClick">Apply</Button>
+            </Grid>
+        </Grid>
+        <Grid Name="PredefinedFiltersGrid"  Margin="10,0,10,10" Grid.Column="0" Grid.Row="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="25"/>
+                <RowDefinition Height="199"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Border Margin="0" Name="ImageFiltersBorder" Grid.Row="0" Grid.ColumnSpan="2" BorderThickness="0.5" BorderBrush="Black"  Background ="{DynamicResource ResourceKey=LightBlueGradient}">
+                <TextBlock Name="FilterOptions" Margin="5"  FontWeight="Bold" >Filter Options
+                </TextBlock>
+            </Border>
+            <Border Name="ImageFiltersOptionsBorder" Margin="0" Grid.Row="1" Grid.RowSpan="1" Grid.ColumnSpan="2" BorderThickness="0.5" BorderBrush="Black"></Border>
+            <StackPanel Name="FilterOptionsPanelOne" Grid.Row="1" Grid.Column="0">
+                <Button Name="ColorAdjustmentButton" Click="ColorAdjustmentButton_OnClick">Color Adjustment</Button>
+                <Button Name="ThresholdingButton" Click="ThresholdingButton_Click">Thresholding</Button>
+                <Button Name="GrayScaleButton" Click="GrayScaleButton_OnClick">Gray Scale</Button>
+                <Button Name="ApplySharpenButton" Click="ApplySharpenButton_OnClick">Apply Sharpen</Button>
+                <Button Name="ApplyGaussianBlurButton" Click="ApplyGaussianBlurButton_OnClick">Apply Gaussian Blur</Button>
+                <Button Name="ApplyEdgeEnhanceButton" Click="ApplyEdgeEnhanceButton_OnClick">Apply Edge Enhance</Button>
+                <Button Name="ApplyEdgeDetectButton" Click="ApplyEdgeDetectButton_OnClick">Apply Edge Detect</Button>
+                <Button Name="ApplyEmbossButton" Click="ApplyEmbossButton_OnClick">Apply Emboss</Button>
+                <Button Name="ApplyMeanRemovalButton" Click="ApplyMeanRemovalButton_OnClick">Apply Mean Removal</Button>
+            </StackPanel>
+        </Grid>
+        <Grid Name="DetailedFilterOptionsGrid" Visibility="Hidden" Margin="10,0,10,10" Grid.Column="0" Grid.Row="3">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="25"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="2*"/>
+            </Grid.ColumnDefinitions>
+            <Border Margin="0" Name="FilterDetailsBorder"  Grid.Row="0" Grid.ColumnSpan="3" BorderThickness="0.5" BorderBrush="Black"  Background ="{DynamicResource ResourceKey=LightBlueGradient}">
+                <TextBlock Name="FilterDetailsTextBlock" Margin="5"  FontWeight="Bold" >Filter Details
+                </TextBlock>
+            </Border>
+            <Border Name="FilterDetailsOptionsBorder" Margin="0" Grid.Row="1" Grid.ColumnSpan="3" BorderThickness="0.5" BorderBrush="Black"></Border>
+            <Grid Name="ColorAdjustmentGrid" Grid.Row="1" Grid.ColumnSpan="3" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock Name="ContrastTextBlock" Grid.Row="0" Grid.Column="0" Margin="4" TextAlignment="Center">Contrast</TextBlock>
+                <TextBlock Name="ContrastSliderTextBlock" Text="{Binding ElementName=ContrastSlider, Path=Value, StringFormat={}{0:#,#.0}}" Grid.Row="0" Grid.Column="1" Margin="4" TextAlignment="Center"></TextBlock>
+                <Slider Name="ContrastSlider" Grid.Row="0" Grid.Column="2" Grid.ColumnSpan="2" Maximum ="200" Value="100" TickPlacement="BottomRight" TickFrequency="10"></Slider>
+                <TextBlock Name="BrightnessTextBlock" Grid.Row="1" Grid.Column="0" Margin="4" TextAlignment="Center">Brightness</TextBlock>
+                <TextBlock Name="BrightnessSliderTextBlock" Text="{Binding ElementName=BrightnessSlider, Path=Value, StringFormat={}{0:#,#.0}}" Grid.Row="1" Grid.Column="1" Margin="4" TextAlignment="Center"></TextBlock>
+                <Slider Name="BrightnessSlider" Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" Maximum ="200" Value="100" TickPlacement="BottomRight" TickFrequency="10" ></Slider>
+                <TextBlock Name="GammaTextBlock" Grid.Row="2" Grid.Column="0" Margin="4" TextAlignment="Center">Gamma</TextBlock>
+                <TextBlock Name="GammaSliderTextBlock" Text="{Binding ElementName=GammaSlider, Path=Value, StringFormat={}{0:#,#.0}}" Grid.Row="2" Grid.Column="1" Margin="4" TextAlignment="Center"></TextBlock>
+                <Slider Name="GammaSlider" Grid.Row="2" Grid.Column="2" Grid.ColumnSpan="2" Maximum ="200" Value="100" TickPlacement="BottomRight" TickFrequency="10" ></Slider>
+                <Button Name="ApplyColorAdjustmentButton" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Click="ApplyColorAdjustmentButton_OnClick">Apply Changes</Button>
+            </Grid>
+            <Grid Name="ThresholdDetailsGrid" Grid.Row="1" Grid.ColumnSpan="3" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                    <TextBlock Name="ThresholdTextBlock" Grid.Column="0" Margin="4" TextAlignment="Center">Threshold</TextBlock>
+                    <TextBox Name="ThreshholdTextBox" Width="30" Margin="2" Grid.Column="1" MaxLength="3" TextChanged="ThreshholdTextBox_OnTextChanged"></TextBox>
+                    <Slider Name="ThresholdSlider" Maximum ="255" Value="150" Grid.Column="2" Grid.ColumnSpan="2" TickPlacement="BottomRight" TickFrequency="5" ValueChanged="ThresholdSlider_ValueChanged"></Slider>
+                <CheckBox Name="ThreshlodingColorToggleButton" IsChecked="True" Background="Gray" Grid.Column="1" Grid.ColumnSpan="2" Grid.Row="1" ToolTip="If checked, thresholding is applied to each color resulting in a colorful picture.">Color</CheckBox>
+                <Button Name="ApplyThresholdingButton" Grid.Column="1" Grid.ColumnSpan="2" Grid.Row="2" Click="ApplyThresholdingButton_OnClick">Apply Thresholding</Button>
+            </Grid>
+            <Grid Name="GrayScaleDetailsGrid" Grid.Row="1" Grid.ColumnSpan="3" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                    <TextBlock Name="GrayScaleBrightnessTextBlock" Margin="4" Grid.Column="0" TextAlignment="Center">Brightness</TextBlock>
+                    <TextBox Name="GrayScaleBrightnessTextBox" Width="30" Margin="2" Grid.Column="1" MaxLength="3" TextChanged="GrayScaleBrightnessTextBox_OnTextChanged"></TextBox>
+                    <Slider Name="GrayScaleBrightnessSlider" Maximum ="100" Value="60" Grid.Column="2" Grid.ColumnSpan="2" TickPlacement="BottomRight" TickFrequency="5" ValueChanged="GrayScaleBrightnessSlider_ValueChanged"></Slider>
+                <Button Name="ApplyGrayScaleButton" Grid.Column="1" Grid.ColumnSpan="2" Grid.Row="1" Click="ApplyGrayScaleButton_OnClick">Apply Gray Scale</Button>
+            </Grid>
+            <StackPanel Name="FilterDetailsTextStack" Grid.Row="1" Grid.Column="0"></StackPanel>
+            <StackPanel Name="FilterDetailsSliderCurrentValueStack" Grid.Row="1" Grid.Column="1"></StackPanel>
+            <StackPanel Name="FilterDetailsSlidersStack" Grid.Row="1" Grid.Column="2"></StackPanel>
+            <Grid Name="ResizeDetailsGrid" Grid.Row="1" Grid.ColumnSpan="3" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock Name="ResizeWidthTextBlock" Margin="4" Grid.Column="0" TextAlignment="Center">Width</TextBlock>
+                <TextBox Name="ResizeWidthTextBox" Margin="2" Grid.Column="1" Width="Auto" TextChanged="ResizeTextBox_OnTextChanged"></TextBox>
+                <TextBlock Name="ResizeHeightTextBlock" Margin="4" Grid.Column="2" TextAlignment="Center">Height</TextBlock>
+                <TextBox Name="ResizeHeightTextBox" Margin="2" Grid.Column="3" Width="Auto" TextChanged="ResizeTextBox_OnTextChanged"></TextBox>
+                <Button Name="ResizeApplyButton" Command="local:CustomCommands.ApplyResize" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2">Resize</Button>
+            </Grid>
+        </Grid>
+        <Grid Name="ImageGrid" Visibility="Collapsed" Margin="10" Column="1" Grid.Row="1" Grid.RowSpan="3">
+                <Image Name="LoadedImage" MouseDown="LoadedImage_MouseDown_GetPixel" RenderOptions.BitmapScalingMode="HighQuality" Stretch="Fill" StretchDirection="DownOnly"></Image>
+        </Grid>
+    </Grid>
+</Window>
