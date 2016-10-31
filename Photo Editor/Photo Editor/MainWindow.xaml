@@ -43,6 +43,7 @@
             <Button Name="UndoButton" Command="local:CustomCommands.Undo" Style="{StaticResource {x:Static ToolBar.ButtonStyleKey}}">Undo</Button>
             <Button Name="RedoButton" Command="local:CustomCommands.Redo" Style="{StaticResource {x:Static ToolBar.ButtonStyleKey}}">Redo</Button>
             <Button Name="ResizeButton" Command="local:CustomCommands.Resize" Style="{StaticResource {x:Static ToolBar.ButtonStyleKey}}">Resize</Button>
+            <TextBlock x:Name="ProcessingTime" Margin="5"  VerticalAlignment="Bottom"/>
         </Menu>
         <Grid Name="ImageDataMainGrid" Margin="10" Row="1" Column="0" Width="360" Height="120" VerticalAlignment="Top">
             <Grid.ColumnDefinitions>

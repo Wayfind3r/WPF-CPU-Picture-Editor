@@ -11,6 +11,7 @@ using System.Windows.Media.Imaging;
 using Microsoft.Win32;
 using Image = System.Windows.Controls.Image;
 using Point = System.Windows.Point;
+using System.Diagnostics;
 
 namespace Photo_Editor
 {
@@ -28,6 +29,7 @@ namespace Photo_Editor
 
         private static List<Image> snapShotList;
         private static int snapShotIndex = -1;
+        private static Stopwatch stopWatch = null;
         private void MainWindow_OnLoaded(object sender, RoutedEventArgs e)
         {
             Application.Current.MainWindow = this;
@@ -35,10 +37,38 @@ namespace Photo_Editor
         }
 
         /// <summary>
+        /// Starts recording time, if we are not already recording
+        /// </summary>
+        private void StartRecordingTime()
+        {
+            if (stopWatch == null)
+            {
+                stopWatch = new Stopwatch();
+                stopWatch.Start();
+            }
+        }
+
+        /// <summary>
+        /// Displays recorded time and resets the timer
+        /// </summary>
+        private void DisplayAndResetTime()
+        {
+            stopWatch.Stop();
+
+            var elapsedTime = stopWatch.ElapsedMilliseconds;
+
+            ProcessingTime.Text = "ExecutionTime: " + elapsedTime.ToString() + " ms";
+
+            stopWatch = null;
+        }
+
+        /// <summary>
         /// Load image into LoadedImage frame and resize Main Window
         /// </summary>
         private void LoadImage(Image thisImage)
         {
+            StartRecordingTime();
+
             if (Application.Current.MainWindow.Width > 400)
                 Application.Current.MainWindow.Width = 400;
             if (Application.Current.MainWindow.Height > 650)
@@ -69,6 +99,8 @@ namespace Photo_Editor
             ResizeHeightTextBox.Text = ((int)thisImage.Source.Height).ToString();
             TotalPixels.Text = "Total Pixels:  " + (int)(thisImage.Source.Width * thisImage.Source.Height);
             ExactPixel.Text = "Pixel:";
+
+            DisplayAndResetTime();
         }
 
         /// <summary>
@@ -82,6 +114,8 @@ namespace Photo_Editor
 
         private void UndoCommand_Executed(object sender, ExecutedRoutedEventArgs e)
         {
+            StartRecordingTime();
+
             snapShotIndex--;
             LoadImage(snapShotList[snapShotIndex]);
         }
@@ -93,6 +127,8 @@ namespace Photo_Editor
 
         private void RedoCommand_Executed(object sender, ExecutedRoutedEventArgs e)
         {
+            StartRecordingTime();
+
             snapShotIndex++;
             LoadImage(snapShotList[snapShotIndex]);
         }
@@ -140,6 +176,8 @@ namespace Photo_Editor
         }
         private void ApplyResizeCommand_Executed(object sender, ExecutedRoutedEventArgs e)
         {
+            StartRecordingTime();
+
             if (LoadedImage.Source == null) return;
             BitmapImage newmap = ImageProcessing.ResizeImage((BitmapImage)LoadedImage.Source, int.Parse(ResizeWidthTextBox.Text), int.Parse(ResizeHeightTextBox.Text));
             Image newIMG = new Image();
@@ -196,6 +234,8 @@ namespace Photo_Editor
 
         private void OpenCommand_Executed(object sender, ExecutedRoutedEventArgs e)
         {
+            StartRecordingTime();
+
             OpenFileDialog op = new OpenFileDialog();
             op.Title = "Select a picture";
             op.Filter = "All supported graphics|*.jpg;*.jpeg;*.png|" +
@@ -295,6 +335,8 @@ namespace Photo_Editor
 
         private void ApplyCustomKernelButton_OnClick(object sender, RoutedEventArgs e)
         {
+            StartRecordingTime();
+
             if (LoadedImage.Source == null) return;
             int[,] kernel = new int[,] { { int.Parse(KernelBox00.Text), int.Parse(KernelBox01.Text), int.Parse(KernelBox02.Text) },
                 { int.Parse(KernelBox10.Text), int.Parse(KernelBox11.Text), int.Parse(KernelBox12.Text)},
@@ -351,6 +393,8 @@ namespace Photo_Editor
         /// </summary>
         private void ApplyThresholdingButton_OnClick(object sender, RoutedEventArgs e)
         {
+            StartRecordingTime();
+
             if (LoadedImage.Source == null) return;
             int threshold = (int)ThresholdSlider.Value;
             bool isColor = (bool)ThreshlodingColorToggleButton.IsChecked;
@@ -423,6 +467,8 @@ namespace Photo_Editor
         /// </summary>
         private void ApplyGrayScaleButton_OnClick(object sender, RoutedEventArgs e)
         {
+            StartRecordingTime();
+
             if (LoadedImage.Source == null) return;
             double brightness = GrayScaleBrightnessSlider.Value;
             BitmapImage newmap = ImageProcessing.ApplyGrayScale((BitmapImage)LoadedImage.Source, brightness);
@@ -435,6 +481,8 @@ namespace Photo_Editor
 
         private void ApplySharpenButton_OnClick(object sender, RoutedEventArgs e)
         {
+            StartRecordingTime();
+
             if (LoadedImage.Source == null) return;
             BitmapImage newmap = ImageProcessing.ApplySharpen((BitmapImage)LoadedImage.Source);
             Image newIMG = new Image();
@@ -445,6 +493,8 @@ namespace Photo_Editor
 
         private void ApplyGaussianBlurButton_OnClick(object sender, RoutedEventArgs e)
         {
+            StartRecordingTime();
+
             if (LoadedImage.Source == null) return;
             BitmapImage newmap = ImageProcessing.ApplyGaussianBlur((BitmapImage)LoadedImage.Source);
             Image newIMG = new Image();
@@ -455,6 +505,8 @@ namespace Photo_Editor
 
         private void ApplyEdgeEnhanceButton_OnClick(object sender, RoutedEventArgs e)
         {
+            StartRecordingTime();
+
             if (LoadedImage.Source == null) return;
             BitmapImage newmap = ImageProcessing.ApplyEdgeEnhance((BitmapImage)LoadedImage.Source);
             Image newIMG = new Image();
@@ -465,6 +517,8 @@ namespace Photo_Editor
 
         private void ApplyEdgeDetectButton_OnClick(object sender, RoutedEventArgs e)
         {
+            StartRecordingTime();
+
             if (LoadedImage.Source == null) return;
             BitmapImage newmap = ImageProcessing.ApplyEdgeDetect((BitmapImage)LoadedImage.Source);
             Image newIMG = new Image();
@@ -475,6 +529,8 @@ namespace Photo_Editor
 
         private void ApplyEmbossButton_OnClick(object sender, RoutedEventArgs e)
         {
+            StartRecordingTime();
+
             if (LoadedImage.Source == null) return;
             BitmapImage newmap = ImageProcessing.ApplyEmboss((BitmapImage)LoadedImage.Source);
             Image newIMG = new Image();
@@ -485,6 +541,8 @@ namespace Photo_Editor
 
         private void ApplyMeanRemovalButton_OnClick(object sender, RoutedEventArgs e)
         {
+            StartRecordingTime();
+
             if (LoadedImage.Source == null) return;
             BitmapImage newmap = ImageProcessing.ApplyMeanRemoval((BitmapImage)LoadedImage.Source);
             Image newIMG = new Image();
@@ -495,6 +553,8 @@ namespace Photo_Editor
 
         private void ApplyColorAdjustmentButton_OnClick(object sender, RoutedEventArgs e)
         {
+            StartRecordingTime();
+
             if (LoadedImage.Source == null) return;
             BitmapImage newmap = ImageProcessing.CustomColorSettings((BitmapImage) LoadedImage.Source,
                 float.Parse(BrightnessSliderTextBlock.Text), float.Parse(ContrastSliderTextBlock.Text),
