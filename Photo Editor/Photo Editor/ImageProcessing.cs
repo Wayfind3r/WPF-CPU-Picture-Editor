@@ -61,7 +61,7 @@ namespace Photo_Editor
 
         public static BitmapImage ApplyThresholding(BitmapImage targetBitmapImage, int threshold, bool color)
         {
-            Bitmap internalBitmap = ImageProcessing.ConvertBitmapImageToBitmap(targetBitmapImage);
+            Bitmap internalBitmap = ConvertBitmapImageToBitmap(targetBitmapImage);
             int width = internalBitmap.Width;
             int height = internalBitmap.Height;
             int realThreshold = threshold;
@@ -75,7 +75,6 @@ namespace Photo_Editor
 
             if (!color)
             {
-                //Parallel for for each slice
                 Parallel.ForEach(slices, slice =>
                 {
                     var sliceWidth = slice.Bitmap.Width;
@@ -116,7 +115,6 @@ namespace Photo_Editor
             }
             else
             {
-                //Parallel for for each slice
                 Parallel.ForEach(slices, slice =>
                 {
                     var sliceWidth = slice.Bitmap.Width;
@@ -153,71 +151,54 @@ namespace Photo_Editor
 
             internalBitmap = ConstructBitmap(threadStack, internalBitmap);
 
-            BitmapImage output = ImageProcessing.ConvertBitmapToBitmapImage(internalBitmap);
+            BitmapImage output = ConvertBitmapToBitmapImage(internalBitmap);
             return output;
         }
         public static BitmapImage ApplyGrayScale(BitmapImage targetBitmapImage, double brightness)
         {
-            Bitmap internalBitmap = ImageProcessing.ConvertBitmapImageToBitmap(targetBitmapImage);
-            int width = internalBitmap.Width;
-            int height = internalBitmap.Height;
-            double realBrightness = brightness/100;
+            var internalBitmap = ConvertBitmapImageToBitmap(targetBitmapImage);
+
             //GRAY = (byte)(.299 * R + .587 * G + .114 * B);
-            int rgb;
+            var redMultiplier = 0.299F;
+            var greenMultiplier = 0.587F;
+            var blueMultiplier = 0.114F;
+            var bightness = (float)brightness / 100F - 1.0f;
 
             var threadStack = new ConcurrentStack<Pixel>();
 
             var slices = SplitBitmap(internalBitmap, 32, 0);
 
-            //Parallel for for each slice
-            Parallel.ForEach(slices, slice =>
-            {
-                var sliceWidth = slice.Bitmap.Width;
-                var sliceHeigth = slice.Bitmap.Height;
-                //Skip columns that are in the offset
-                for (var w = 0; w < sliceWidth; w++)
-                {
-                    for (var h = 0; h < sliceHeigth; h++)
-                    {
-                        var pixelColor = slice.Bitmap.GetPixel(w, h);
-                        double newDouble = (pixelColor.R * 0.299 + pixelColor.G * 0.587 + pixelColor.B * 0.114) * realBrightness;
-                        rgb = Convert.ToInt32(newDouble);
+            //create a blank bitmap the same size as original
+            var resultBitmap = new Bitmap(internalBitmap.Width, internalBitmap.Height);
 
-                        var pixel = new Pixel
-                        {
-                            X = w + slice.SliceXStartInOriginal,
-                            Y = h,
-                            Color = Color.FromArgb(rgb, rgb, rgb)
-                        };
+            //get a graphics object from the new image
+            var g = Graphics.FromImage(resultBitmap);
 
-                        threadStack.Push(pixel);
-                    }
-                }
-            });
+            //create the grayscale ColorMatrix
+            var colorMatrix = new ColorMatrix(
+               new float[][]
+               {
+                 new float[] { redMultiplier, redMultiplier, redMultiplier, 0, 0},//red
+                 new float[] { greenMultiplier, greenMultiplier, greenMultiplier, 0, 0},//green
+                 new float[] { blueMultiplier, blueMultiplier, blueMultiplier, 0, 0},//blue
+                 new float[] {0, 0, 0, 1, 0},//alpha
+                 new float[] { bightness, bightness, bightness, 0, 1}
+               });
 
-            ////Skip columns that are in the offset
-            //for (var w = 0 ; w < width; w++)
-            //{
-            //    for (var h = 0; h < height; h++)
-            //    {
-            //        var pixelColor = internalBitmap.GetPixel(w, h);
-            //        double newDouble = (pixelColor.R * 0.299 + pixelColor.G * 0.587 + pixelColor.B * 0.114) * realBrightness;
-            //        rgb = Convert.ToInt32(newDouble);
+            //create some image attributes
+            var attributes = new ImageAttributes();
 
-            //        var pixel = new Pixel
-            //        {
-            //            X = w,
-            //            Y = h,
-            //            Color = Color.FromArgb(rgb, rgb, rgb)
-            //        };
+            //set the color matrix attribute
+            attributes.SetColorMatrix(colorMatrix);
 
-            //        threadStack.Push(pixel);
-            //    }
-            //}
+            //draw the original image on the new image
+            g.DrawImage(internalBitmap, 
+               new Rectangle(0, 0, internalBitmap.Width, internalBitmap.Height),// destination rectangle 
+               0, 0,// upper-left corner of source rectangle 
+               internalBitmap.Width, internalBitmap.Height, 
+               GraphicsUnit.Pixel, attributes);
 
-            internalBitmap = ConstructBitmap(threadStack, internalBitmap);
-
-            BitmapImage output = ImageProcessing.ConvertBitmapToBitmapImage(internalBitmap);
+            var output = ConvertBitmapToBitmapImage(resultBitmap);
             return output;
         }
 
@@ -231,7 +212,7 @@ namespace Photo_Editor
         /// <returns></returns>
         public static BitmapImage ApplyFilterFromMatrix(BitmapImage targetBitmapImage, int[,] matrix, int offset, float factor)
         {
-            Bitmap internalBitmap = ImageProcessing.ConvertBitmapImageToBitmap(targetBitmapImage);
+            Bitmap internalBitmap = ConvertBitmapImageToBitmap(targetBitmapImage);
             int width = internalBitmap.Width;
             int height = internalBitmap.Height;
 
@@ -239,7 +220,6 @@ namespace Photo_Editor
 
             var threadStack = new ConcurrentStack<Pixel>();
 
-            //Parallel for for each slice
             Parallel.ForEach(slices, slice =>
             {
                 var sliceWidth = slice.Bitmap.Width;
@@ -285,7 +265,7 @@ namespace Photo_Editor
             });
             internalBitmap = ConstructBitmap(threadStack, internalBitmap);
 
-            BitmapImage outputBitmapImage = ImageProcessing.ConvertBitmapToBitmapImage(internalBitmap);
+            BitmapImage outputBitmapImage = ConvertBitmapToBitmapImage(internalBitmap);
             return outputBitmapImage;
         }
 
@@ -354,7 +334,7 @@ namespace Photo_Editor
             if (brightness != 0) brightness /= 100;
             if (contrast != 0) contrast /= 100;
             if (gamma != 0) gamma /= 100;
-            Bitmap originalImage = ImageProcessing.ConvertBitmapImageToBitmap(targetBitmap);
+            Bitmap originalImage = ConvertBitmapImageToBitmap(targetBitmap);
             Bitmap adjustedImage = new Bitmap(originalImage);
             float adjustedBrightness = brightness - 1.0f;
             float[][] ptsArray ={
@@ -372,7 +352,7 @@ namespace Photo_Editor
             g.DrawImage(adjustedImage, new Rectangle(0, 0, adjustedImage.Width, adjustedImage.Height)
                 , 0, 0, originalImage.Width, originalImage.Height,
                 GraphicsUnit.Pixel, imageAttributes);
-            BitmapImage outputBitmapImage = ImageProcessing.ConvertBitmapToBitmapImage(adjustedImage);
+            BitmapImage outputBitmapImage = ConvertBitmapToBitmapImage(adjustedImage);
             return outputBitmapImage;
         }
 
@@ -405,7 +385,7 @@ namespace Photo_Editor
                     graphics.DrawImage(imageAfter, destRect, 0, 0, imageAfter.Width, imageAfter.Height, GraphicsUnit.Pixel, wrapMode);
                 }
             }
-            BitmapImage outputBitmapImage = ImageProcessing.ConvertBitmapToBitmapImage(destImage);
+            BitmapImage outputBitmapImage = ConvertBitmapToBitmapImage(destImage);
             return outputBitmapImage;
         }
 
@@ -434,8 +414,10 @@ namespace Photo_Editor
         /// </summary>
         /// <param name="target"></param>
         /// <param name="widthPerPiece"></param>
-        /// <param name="sideOffset"></param>
+        /// <param name="sideOffset">Set this to Kernel matrix radius</param>
         /// <returns></returns>
+        /// There's a lock inside GDI+ that prevents two threads from accessing a Bitmap at the same time.
+        /// You can use this method to split the Bitmap into BitmapSlices to use for Parallel tasks
         private static List<BitmapSlice> SplitBitmap(Bitmap target, int maxWidthPerPiece = 32, int sideOffset = 1)
         {
             var result = new List<BitmapSlice>();
