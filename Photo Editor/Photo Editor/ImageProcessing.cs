@@ -164,10 +164,6 @@ namespace Photo_Editor
             var blueMultiplier = 0.114F;
             var bightness = (float)brightness / 100F - 1.0f;
 
-            var threadStack = new ConcurrentStack<Pixel>();
-
-            var slices = SplitBitmap(internalBitmap, 32, 0);
-
             //create a blank bitmap the same size as original
             var resultBitmap = new Bitmap(internalBitmap.Width, internalBitmap.Height);
 
