@@ -3,11 +3,19 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
-using System.Windows;
 using System.Windows.Media.Imaging;
+
+using System.Threading.Tasks;
+using System.Collections.Concurrent;
+using Photo_Editor.DataModels;
+using System.Collections.Generic;
 
 namespace Photo_Editor
 {
+    /// <summary>
+    /// Containes utility methods for processing images
+    /// </summary>
+    //Keep in mind that there's a lock inside GDI+ that prevents two threads from accessing a bitmap at the same time.
     public static class ImageProcessing
     {
         /// <summary>
@@ -28,6 +36,7 @@ namespace Photo_Editor
                 return new Bitmap(bitmap);
             }
         }
+
         /// <summary>
         ///     Convert Bitmap to BitmapImage for read-write convenience
         ///     Do not mistake
@@ -56,45 +65,94 @@ namespace Photo_Editor
             int width = internalBitmap.Width;
             int height = internalBitmap.Height;
             int realThreshold = threshold;
-            if (threshold < 1) realThreshold = 1;
-            if (threshold > 255) realThreshold = 255;
+
+            realThreshold = Math.Max(threshold, 1);
+            realThreshold = Math.Min(threshold, 255);
+
+            var threadStack = new ConcurrentStack<Pixel>();
+
+            var slices = SplitBitmap(internalBitmap);
+
             if (!color)
             {
-                for (int w = 0; w < width; w++)
+                //Parallel for for each slice
+                Parallel.ForEach(slices, slice =>
                 {
-                    for (int h = 0; h < height; h++)
+                    var sliceWidth = slice.Bitmap.Width;
+                    var sliceHeigth = slice.Bitmap.Height;
+                    //Skip columns that are in the offset
+                    for (var w = 0 + slice.OffsetLeft; w < sliceWidth - slice.OffsetRight; w++)
                     {
-                        Color pixelColor = internalBitmap.GetPixel(w, h);
+                        for (int h = 0; h < sliceHeigth; h++)
+                        {
+                            Color pixelColor = slice.Bitmap.GetPixel(w, h);
 
                             if (pixelColor.G >= realThreshold || pixelColor.B >= realThreshold ||
-                                pixelColor.R >= realThreshold)
-                            {internalBitmap.SetPixel(w, h, Color.Black);}
+                                    pixelColor.R >= realThreshold)
+                            {
+                                var pixel = new Pixel
+                                {
+                                    X = w + slice.SliceXStartInOriginal,
+                                    Y = h,
+                                    Color = Color.Black
+                                };
+
+                                threadStack.Push(pixel);
+                            }
                             else
-                            {internalBitmap.SetPixel(w, h, Color.White);}
+                            {
+                                var pixel = new Pixel
+                                {
+                                    X = w + slice.SliceXStartInOriginal,
+                                    Y = h,
+                                    Color = Color.White
+                                };
+
+                                threadStack.Push(pixel);
+                            }
+                        }
                     }
-                }
+                });
             }
             else
             {
-                int r, g, b;
-                for (int w = 0; w < width; w++)
+                //Parallel for for each slice
+                Parallel.ForEach(slices, slice =>
                 {
-                    for (int h = 0; h < height; h++)
+                    var sliceWidth = slice.Bitmap.Width;
+                    var sliceHeigth = slice.Bitmap.Height;
+                    //Skip columns that are in the offset
+                    for (var w = 0 + slice.OffsetLeft; w < sliceWidth - slice.OffsetRight; w++)
                     {
-                        Color pixelColor = internalBitmap.GetPixel(w, h);
-                        if (pixelColor.R >= realThreshold)
-                        {r = 255;}
-                        else {r = 0;}
-                        if (pixelColor.G >= realThreshold)
-                        {g = 255;}
-                        else {g = 0;}
-                        if (pixelColor.B>= realThreshold)
-                        {b = 255;}
-                        else {b = 0;}
-                        internalBitmap.SetPixel(w, h, Color.FromArgb(r,g,b));
+                        int r, g, b;
+                        for (int h = 0; h < sliceHeigth; h++)
+                        {
+                            Color pixelColor = slice.Bitmap.GetPixel(w, h);
+                            if (pixelColor.R >= realThreshold)
+                            { r = 255; }
+                            else { r = 0; }
+                            if (pixelColor.G >= realThreshold)
+                            { g = 255; }
+                            else { g = 0; }
+                            if (pixelColor.B >= realThreshold)
+                            { b = 255; }
+                            else { b = 0; }
+
+                            var pixel = new Pixel
+                            {
+                                X = w + slice.SliceXStartInOriginal,
+                                Y = h,
+                                Color = Color.FromArgb(r, b, g)
+                            };
+
+                            threadStack.Push(pixel);
+                        }
                     }
-                }
+                });
             }
+
+            internalBitmap = ConstructBitmap(threadStack, internalBitmap);
+
             BitmapImage output = ImageProcessing.ConvertBitmapToBitmapImage(internalBitmap);
             return output;
         }
@@ -106,16 +164,59 @@ namespace Photo_Editor
             double realBrightness = brightness/100;
             //GRAY = (byte)(.299 * R + .587 * G + .114 * B);
             int rgb;
-            for (var w = 0; w < width; w++)
+
+            var threadStack = new ConcurrentStack<Pixel>();
+
+            var slices = SplitBitmap(internalBitmap, 32, 0);
+
+            //Parallel for for each slice
+            Parallel.ForEach(slices, slice =>
             {
-                for (var h = 0; h < height; h++)
+                var sliceWidth = slice.Bitmap.Width;
+                var sliceHeigth = slice.Bitmap.Height;
+                //Skip columns that are in the offset
+                for (var w = 0; w < sliceWidth; w++)
                 {
-                    var pixelColor = internalBitmap.GetPixel(w, h);
-                    double newDouble = (pixelColor.R*0.299 + pixelColor.G*0.587 + pixelColor.B*0.114)*realBrightness;
-                    rgb = Convert.ToInt32(newDouble);
-                    internalBitmap.SetPixel(w, h, Color.FromArgb(rgb, rgb, rgb));
+                    for (var h = 0; h < sliceHeigth; h++)
+                    {
+                        var pixelColor = slice.Bitmap.GetPixel(w, h);
+                        double newDouble = (pixelColor.R * 0.299 + pixelColor.G * 0.587 + pixelColor.B * 0.114) * realBrightness;
+                        rgb = Convert.ToInt32(newDouble);
+
+                        var pixel = new Pixel
+                        {
+                            X = w + slice.SliceXStartInOriginal,
+                            Y = h,
+                            Color = Color.FromArgb(rgb, rgb, rgb)
+                        };
+
+                        threadStack.Push(pixel);
+                    }
                 }
-            }
+            });
+
+            ////Skip columns that are in the offset
+            //for (var w = 0 ; w < width; w++)
+            //{
+            //    for (var h = 0; h < height; h++)
+            //    {
+            //        var pixelColor = internalBitmap.GetPixel(w, h);
+            //        double newDouble = (pixelColor.R * 0.299 + pixelColor.G * 0.587 + pixelColor.B * 0.114) * realBrightness;
+            //        rgb = Convert.ToInt32(newDouble);
+
+            //        var pixel = new Pixel
+            //        {
+            //            X = w,
+            //            Y = h,
+            //            Color = Color.FromArgb(rgb, rgb, rgb)
+            //        };
+
+            //        threadStack.Push(pixel);
+            //    }
+            //}
+
+            internalBitmap = ConstructBitmap(threadStack, internalBitmap);
+
             BitmapImage output = ImageProcessing.ConvertBitmapToBitmapImage(internalBitmap);
             return output;
         }
@@ -131,44 +232,60 @@ namespace Photo_Editor
         public static BitmapImage ApplyFilterFromMatrix(BitmapImage targetBitmapImage, int[,] matrix, int offset, float factor)
         {
             Bitmap internalBitmap = ImageProcessing.ConvertBitmapImageToBitmap(targetBitmapImage);
-            Bitmap output = new Bitmap(internalBitmap);
             int width = internalBitmap.Width;
             int height = internalBitmap.Height;
-            for(var w = 0; w < width; w++)
+
+            var slices = SplitBitmap(internalBitmap);
+
+            var threadStack = new ConcurrentStack<Pixel>();
+
+            //Parallel for for each slice
+            Parallel.ForEach(slices, slice =>
             {
-                for (var h = 0; h < height; h++)
+                var sliceWidth = slice.Bitmap.Width;
+                var sliceHeigth = slice.Bitmap.Height;
+                //Skip columns that are in the offset
+                for (var w = 0 + slice.OffsetLeft; w < sliceWidth - slice.OffsetRight; w++)
                 {
-                    int red = 0;
-                    int green = 0;
-                    int blue = 0;
-                    for (int r = w - (matrix.GetLength(0)/2), matrixRow = 0; r <= w + (matrix.GetLength(0)/2); r++, matrixRow++)
+                    for (var h = 0; h < sliceHeigth; h++)
                     {
-                        if (r<0 || r>= width) continue;
-                        for (int c = h - (matrix.GetLength(1)/2), matrixCol = 0; c <= h + (matrix.GetLength(1)/2); c++, matrixCol++)
+                        int red = 0;
+                        int green = 0;
+                        int blue = 0;
+                        for (int r = w - (matrix.GetLength(0) / 2), matrixRow = 0; r <= w + (matrix.GetLength(0) / 2); r++, matrixRow++)
                         {
-                            if (c<0 || c>=height) continue;
-                            if (matrix[matrixRow, matrixCol] != 0)
+                            if (r < 0 || r >= sliceWidth) continue;
+                            for (int c = h - (matrix.GetLength(1) / 2), matrixCol = 0; c <= h + (matrix.GetLength(1) / 2); c++, matrixCol++)
                             {
-                                var currentColor = internalBitmap.GetPixel(r, c);
-                                red += (currentColor.R)*(matrix[matrixRow,matrixCol]);
-                                blue += (currentColor.B) * (matrix[matrixRow, matrixCol]);
-                                green += (currentColor.G) * (matrix[matrixRow, matrixCol]);
+                                if (c < 0 || c >= sliceHeigth) continue;
+                                if (matrix[matrixRow, matrixCol] != 0)
+                                {
+                                    var currentColor = slice.Bitmap.GetPixel(r, c);
+                                    red += (currentColor.R) * (matrix[matrixRow, matrixCol]);
+                                    blue += (currentColor.B) * (matrix[matrixRow, matrixCol]);
+                                    green += (currentColor.G) * (matrix[matrixRow, matrixCol]);
+                                }
                             }
                         }
+
+                        red = Math.Min(Math.Max((int)(red / factor + offset), 0), 255);
+                        green = Math.Min(Math.Max((int)(green / factor + offset), 0), 255);
+                        blue = Math.Min(Math.Max((int)(blue / factor + offset), 0), 255);
+
+                        var pixel = new Pixel
+                        {
+                            X = w + slice.SliceXStartInOriginal,
+                            Y = h,
+                            Color = Color.FromArgb(red, green, blue)
+                        };
+
+                        threadStack.Push(pixel);
                     }
-                    red = (int)(red/factor + offset);
-                    if (red < 0) red = 0;
-                    if (red > 255) red = 255;
-                    blue = (int)(blue / factor + offset);
-                    if (blue < 0) blue = 0;
-                    if (blue > 255) blue = 255;
-                    green = (int)(green / factor + offset);
-                    if (green < 0) green = 0;
-                    if (green > 255) green = 255;
-                    output.SetPixel(w, h, Color.FromArgb(red, green, blue));
                 }
-            }
-            BitmapImage outputBitmapImage = ImageProcessing.ConvertBitmapToBitmapImage(output);
+            });
+            internalBitmap = ConstructBitmap(threadStack, internalBitmap);
+
+            BitmapImage outputBitmapImage = ImageProcessing.ConvertBitmapToBitmapImage(internalBitmap);
             return outputBitmapImage;
         }
 
@@ -290,6 +407,75 @@ namespace Photo_Editor
             }
             BitmapImage outputBitmapImage = ImageProcessing.ConvertBitmapToBitmapImage(destImage);
             return outputBitmapImage;
+        }
+
+        /// <summary>
+        /// Returns a new bitmap, as combination between the stack and the base Bitmap
+        /// </summary>
+        /// <param name="stack"></param>
+        /// <param name="baseBitmap"></param>
+        /// <returns></returns>
+        private static Bitmap ConstructBitmap(ConcurrentStack<Pixel> stack, Bitmap baseBitmap)
+        {
+            var result = new Bitmap(baseBitmap);
+
+            //Set all processed pixels
+            var poppedPixel = new Pixel();
+            while (stack.TryPop(out poppedPixel))
+            {
+                result.SetPixel(poppedPixel.X, poppedPixel.Y, poppedPixel.Color);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Splits a Bitmap into Slices with a fixed max width and a buffer of a few pixels
+        /// </summary>
+        /// <param name="target"></param>
+        /// <param name="widthPerPiece"></param>
+        /// <param name="sideOffset"></param>
+        /// <returns></returns>
+        private static List<BitmapSlice> SplitBitmap(Bitmap target, int maxWidthPerPiece = 32, int sideOffset = 1)
+        {
+            var result = new List<BitmapSlice>();
+
+            var sliceStart = 0;
+            var sliceEnd = 0;
+            var targetWidth = target.Width;
+            var targetHeight = target.Height;
+            var bufferLeft = 0;
+            var bufferRight = 0;
+
+            var rectangle = new Rectangle();
+
+            while(sliceEnd < targetWidth - 1)
+            {
+                //Confirm the true slice end X
+                sliceEnd = Math.Min(sliceStart + maxWidthPerPiece, targetWidth - 1);
+                //Make sure there is space for a offset on each side
+                bufferLeft = sliceStart == 0 ? 0 : sideOffset;
+                bufferRight = sliceEnd == targetWidth - 1 ? 0 : sideOffset;
+
+                var slice = new BitmapSlice
+                {
+                    //Later on we will ignore the pixels in the offset columns
+                    OffsetLeft = bufferLeft,
+                    OffsetRight = bufferRight,
+                    SliceWidth = sliceEnd - sliceStart + bufferRight + bufferLeft,
+                    SliceXStartInOriginal = sliceStart
+                };
+
+                rectangle =  new Rectangle(sliceStart - bufferLeft ,0 ,slice.SliceWidth ,targetHeight);
+
+                slice.Bitmap = target.Clone(rectangle, target.PixelFormat);
+
+                result.Add(slice);
+                //Modify the next slice Start with this slice's width
+                sliceStart += slice.SliceWidth - bufferRight - 1;
+            }
+
+            return result;
         }
     }
 }
